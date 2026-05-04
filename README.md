@@ -42,13 +42,13 @@ The frontend defaults to `http://localhost:3001` for the API. Override with `VIT
 
 ## Decisions worth calling out
 
-**Stateful backend with sessions.** Each game gets a UUID and the server tracks guesses, tries used, and status. I considered going stateless (frontend tracks everything, backend just colors guesses) but sessions make the backend more interesting and make the `/answer` endpoint feel coherent — it reveals *this game's* answer, not just "today's word."
+**Stateful backend with sessions.** Each game gets a UUID and the server tracks guesses, tries used, and status. I considered going stateless (frontend tracks everything, backend just colors guesses) but sessions make the backend more interesting and make the `/answer` endpoint feel coherent.
 
-**Sessions stored in memory.** A `Map` keyed by `gameId`. Doesn't survive restarts. Fine for this project; production would use Redis. Calling it out instead of pretending otherwise.
+**Sessions stored in memory.** A `Map` keyed by `gameId`. Doesn't survive restarts. Fine for this project; production would use Redis or something similar. 
 
 **Daily word via deterministic indexing.** `answers[Math.floor(Date.now() / 86_400_000) % answers.length]`. Same word for everyone, no cron, no DB. Pure function of the date.
 
-**Word list as a `Set`.** Validating guesses against ~15,000 words on every request — `Set.has()` is O(1) and the obvious choice. I also unioned the answer list into the guess list at startup, which prevents the edge case where today's answer isn't in the guess list (would make the game unwinnable).
+**Word list as a `Set`.** Validating guesses against ~15,000 words on every request — `Set.has()` is O(1) and the most efficient option. I also unioned the answer list into the guess list at startup, which prevents the edge case where today's answer isn't in the guess list (would make the game unwinnable).
 
 **Two-pass coloring.** The classic Wordle gotcha is duplicate letters. Single-pass logic gets `GEESE` vs `SPEED` wrong. My implementation does:
 1. First pass: mark greens, decrement a frequency-map "remaining letters" pool
