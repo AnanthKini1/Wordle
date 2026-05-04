@@ -112,7 +112,7 @@ export default function Game() {
 
       <div className="board">
         {rows.map((row, rowIdx) => (
-          <div key={row.isCurrent ? shakeKey : rowIdx} className={`row${row.isCurrent && error ? ' shake' : ''}`}>
+          <div key={row.isCurrent ? `cur-${shakeKey}` : rowIdx} className={`row${row.isCurrent && error ? ' shake' : ''}`}>
             {Array.from(row.word).map((letter, colIdx) => {
               const color = row.colors[colIdx];
               const filled = letter.trim() !== '';
