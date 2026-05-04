@@ -11,6 +11,7 @@
 
 .game h1 {
   font-size: 2rem;
+  line-height: 1.2;
   letter-spacing: 0.1em;
   margin-bottom: 1.5rem;
   text-transform: uppercase;
@@ -217,6 +218,11 @@
 .key.gray   { background: #3a3a3c; }
 
 @media (max-width: 500px) {
+  .game h1 {
+    font-size: 1.4rem;
+    letter-spacing: 0.05em;
+  }
+
   .tile {
     width: 50px;
     height: 50px;
