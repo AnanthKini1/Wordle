@@ -5,6 +5,12 @@ import './Game.css';
 const MAX_TRIES = 6;
 const WORD_LENGTH = 5;
 
+const KEYBOARD_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['Enter','Z','X','C','V','B','N','M','Backspace'],
+];
+
 export default function Game() {
   const [gameId, setGameId] = useState<string | null>(null);
   const [guesses, setGuesses] = useState<Guess[]>([]);
@@ -94,6 +100,19 @@ export default function Game() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [currentGuess, status, handleSubmit]);
 
+  // compute best-known color per letter (green > yellow > gray)
+  const colorPriority = { green: 3, yellow: 2, gray: 1 } as const;
+  const letterColors: Record<string, 'green' | 'yellow' | 'gray'> = {};
+  for (const guess of guesses) {
+    Array.from(guess.word).forEach((letter, i) => {
+      const color = guess.colors[i];
+      const current = letterColors[letter];
+      if (!current || colorPriority[color] > colorPriority[current]) {
+        letterColors[letter] = color;
+      }
+    });
+  }
+
   // builds the wordle grid
   const rows = [];
   for (let i = 0; i < MAX_TRIES; i++) {
@@ -135,6 +154,37 @@ export default function Game() {
       </div>
 
       {error && <div className="error">{error}</div>}
+
+      <div className="keyboard">
+        {KEYBOARD_ROWS.map((row, ri) => (
+          <div key={ri} className="keyboard-row">
+            {row.map(key => {
+              const isWide = key === 'Enter' || key === 'Backspace';
+              const colorClass = !isWide ? (letterColors[key.toLowerCase()] || '') : '';
+              return (
+                <button
+                  key={key}
+                  className={['key', colorClass, isWide ? 'key-wide' : ''].filter(Boolean).join(' ')}
+                  onClick={() => {
+                    if (status !== 'active') return;
+                    if (key === 'Enter') {
+                      handleSubmit();
+                    } else if (key === 'Backspace') {
+                      setCurrentGuess(g => g.slice(0, -1));
+                      setError(null);
+                    } else if (currentGuess.length < WORD_LENGTH) {
+                      setCurrentGuess(g => g + key.toLowerCase());
+                      setError(null);
+                    }
+                  }}
+                >
+                  {key === 'Backspace' ? '⌫' : key}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
 
       {status !== 'active' && (
         <div className="modal-backdrop">
