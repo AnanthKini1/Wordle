@@ -73,15 +73,11 @@ Tested against `GEESE`/`SPEED`, `BANAL`/`ALLOY`, `LLAMA`/`ALLOY`, `BOOTH`/`BROTH
 
 ## What I'd add with more time
 
-- **Leaderboard.** Considered and cut. A real one needs auth, persistence, and a meaningful score model. Half-built it would've looked worse than not having it.
+- **Leaderboard.** I was debating whether this was worth adding but felt it was outside the scope of this project, as a real leaderboard requires auth and a database.
 - **Hard mode.** Yellow letters in past guesses must appear in future guesses.
 - **Share-results string** ("DNW 142 4/6 ⬛🟨🟩🟩🟩").
 - **Persistent sessions** via Redis so restarts don't drop in-flight games.
 - **Streak tracking** in localStorage.
-
-## On the use of AI
-
-I used Claude as a thinking partner throughout — for design discussion (stateless vs. stateful backend, what data structures to use, what to cut from scope), for sanity-checking the coloring algorithm against edge cases, and for code generation on boilerplate. Every architectural decision was mine. I pushed back when suggestions didn't fit the project — I declined a leaderboard despite it coming up early, and avoided splitting the frontend into a dozen components when one was enough. I read every diff before committing it.
 
 ## Repo structure
 
