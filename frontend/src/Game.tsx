@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { startGame, submitGuess, getAnswer, type Guess, type Status } from './api';
 import './Game.css';
 
-const MAX_TRIES = 5;
+const MAX_TRIES = 6;
 const WORD_LENGTH = 5;
 
 export default function Game() {
@@ -11,7 +11,10 @@ export default function Game() {
   const [currentGuess, setCurrentGuess] = useState('');
   const [status, setStatus] = useState<Status>('active');
   const [error, setError] = useState<string | null>(null);
+  const [shakeKey, setShakeKey] = useState(0);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [revealingRow, setRevealingRow] = useState<number | null>(null);
+  const [revealedCount, setRevealedCount] = useState(0);
 
   // starts game
   useEffect(() => {
@@ -20,19 +23,45 @@ export default function Game() {
       .catch(err => setError(err.message));
   }, []);
 
+  const handlePlayAgain = useCallback(async () => {
+    try {
+      const state = await startGame();
+      setGameId(state.gameId);
+      setGuesses([]);
+      setCurrentGuess('');
+      setStatus('active');
+      setError(null);
+      setAnswer(null);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (!gameId || status !== 'active') return;
     if (currentGuess.length !== WORD_LENGTH) {
       setError(`Guess must be ${WORD_LENGTH} letters`);
+      setShakeKey(k => k + 1);
       return;
     }
 
     try {
+      const rowIndex = guesses.length;
       const res = await submitGuess(gameId, currentGuess);
       setGuesses(res.guesses);
       setStatus(res.status);
       setCurrentGuess('');
       setError(null);
+      setRevealingRow(rowIndex);
+      setRevealedCount(0);
+      for (let col = 0; col < WORD_LENGTH; col++) {
+        const count = col + 1;
+        setTimeout(() => setRevealedCount(count), col * 200 + 50);
+      }
+      setTimeout(() => {
+        setRevealingRow(null);
+        setRevealedCount(0);
+      }, (WORD_LENGTH - 1) * 200 + 600);
 
       if (res.status === 'lost') {
         const a = await getAnswer(gameId);
@@ -42,8 +71,9 @@ export default function Game() {
       }
     } catch (err: any) {
       setError(err.message);
+      setShakeKey(k => k + 1);
     }
-  }, [gameId, currentGuess, status]);
+  }, [gameId, currentGuess, status, guesses]);
 
   // user input
   useEffect(() => {
@@ -82,11 +112,18 @@ export default function Game() {
 
       <div className="board">
         {rows.map((row, rowIdx) => (
-          <div key={rowIdx} className="row">
+          <div key={row.isCurrent ? shakeKey : rowIdx} className={`row${row.isCurrent && error ? ' shake' : ''}`}>
             {Array.from(row.word).map((letter, colIdx) => {
               const color = row.colors[colIdx];
               const filled = letter.trim() !== '';
-              const className = `tile ${color || ''} ${filled && row.isCurrent ? 'filled' : ''}`;
+              const isRevealing = rowIdx === revealingRow;
+              const colorClass = !isRevealing || colIdx < revealedCount ? (color || '') : '';
+              const className = [
+                'tile',
+                colorClass,
+                isRevealing ? `revealed delay-${colIdx}` : '',
+                filled && row.isCurrent ? 'filled' : '',
+              ].filter(Boolean).join(' ');
               return (
                 <div key={colIdx} className={className}>
                   {letter.trim().toUpperCase()}
@@ -99,11 +136,21 @@ export default function Game() {
 
       {error && <div className="error">{error}</div>}
 
-      {status === 'won' && (
-        <div className="result win">You got it! The word was {answer?.toUpperCase()}.</div>
-      )}
-      {status === 'lost' && (
-        <div className="result loss">Out of tries. The word was {answer?.toUpperCase()}.</div>
+      {status !== 'active' && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h2 className="modal-headline">
+              {status === 'won' ? 'You won!' : 'Out of tries'}
+            </h2>
+            <div className="modal-answer">{answer?.toUpperCase()}</div>
+            {status === 'won' && (
+              <div className="modal-tries">Solved in {guesses.length}/{MAX_TRIES}</div>
+            )}
+            <button className="modal-play-again" onClick={handlePlayAgain}>
+              Play Again
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
