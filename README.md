@@ -1,73 +1,100 @@
-# React + TypeScript + Vite
+# Definitely Not Wordle
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A fullstack Wordle clone built for the GoLinks 2026 Fullstack Intern project.
 
-Currently, two official plugins are available:
+**Live demo:** https://wordle-frontend-production.up.railway.app/
+**Backend API:** https://wordle-backend-production-e546.up.railway.app/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- React + TypeScript + Vite (frontend)
+- Node.js + Express (backend)
+- Deployed to Railway as two separate services
+- Word lists are bundled as plain text files: original Wordle answer list (~2,300 words) and the accepted-guess list (~13,000 words)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Run locally
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Backend:
+```bash
+cd backend
+npm install
+npm run dev   # port 3001
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Frontend:
+```bash
+cd frontend
+npm install
+npm run dev   # port 5173
+```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The frontend defaults to `http://localhost:3001` for the API. Override with `VITE_API_URL` in `frontend/.env`.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## API
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST   | `/api/game` | Start a new game, returns `gameId` |
+| POST   | `/api/game/:id/guess` | Submit a guess, returns colors and game state |
+| GET    | `/api/game/:id/answer` | Reveal the answer (required by the spec) |
+| GET    | `/api/game/:id` | Get current game state |
+| GET    | `/health` | Health check |
+
+## Decisions worth calling out
+
+**Stateful backend with sessions.** Each game gets a UUID and the server tracks guesses, tries used, and status. I considered going stateless (frontend tracks everything, backend just colors guesses) but sessions make the backend more interesting and make the `/answer` endpoint feel coherent — it reveals *this game's* answer, not just "today's word."
+
+**Sessions stored in memory.** A `Map` keyed by `gameId`. Doesn't survive restarts. Fine for this project; production would use Redis. Calling it out instead of pretending otherwise.
+
+**Daily word via deterministic indexing.** `answers[Math.floor(Date.now() / 86_400_000) % answers.length]`. Same word for everyone, no cron, no DB. Pure function of the date.
+
+**Word list as a `Set`.** Validating guesses against ~15,000 words on every request — `Set.has()` is O(1) and the obvious choice. I also unioned the answer list into the guess list at startup, which prevents the edge case where today's answer isn't in the guess list (would make the game unwinnable).
+
+**Two-pass coloring.** The classic Wordle gotcha is duplicate letters. Single-pass logic gets `GEESE` vs `SPEED` wrong. My implementation does:
+1. First pass: mark greens, decrement a frequency-map "remaining letters" pool
+2. Second pass: walk left-to-right, claim yellows from whatever's left in the pool
+
+Tested against `GEESE`/`SPEED`, `BANAL`/`ALLOY`, `LLAMA`/`ALLOY`, `BOOTH`/`BROTH`.
+
+**TypeScript on the frontend, plain JS on the backend.** TS earns its keep where data shapes matter (component props, API response types). The backend is small enough that adding a build step would cost more than it'd save.
+
+**CORS locked to the frontend origin.** Configurable via `FRONTEND_URL` env var. No wildcards.
+
+## Features
+
+- 5-letter, 6-try gameplay
+- Dictionary validation
+- Tile flip animation on reveal (staggered left-to-right)
+- Shake on invalid guesses
+- On-screen keyboard with letter states (green > yellow > gray)
+- Win/loss modal with play-again
+- Mobile responsive
+- Daily word rotation
+
+## What I'd add with more time
+
+- **Leaderboard.** Considered and cut. A real one needs auth, persistence, and a meaningful score model. Half-built it would've looked worse than not having it.
+- **Hard mode.** Yellow letters in past guesses must appear in future guesses.
+- **Share-results string** ("DNW 142 4/6 ⬛🟨🟩🟩🟩").
+- **Persistent sessions** via Redis so restarts don't drop in-flight games.
+- **Streak tracking** in localStorage.
+
+## On the use of AI
+
+I used Claude as a thinking partner throughout — for design discussion (stateless vs. stateful backend, what data structures to use, what to cut from scope), for sanity-checking the coloring algorithm against edge cases, and for code generation on boilerplate. Every architectural decision was mine. I pushed back when suggestions didn't fit the project — I declined a leaderboard despite it coming up early, and avoided splitting the frontend into a dozen components when one was enough. I read every diff before committing it.
+
+## Repo structure
+
+```
+.
+├── backend/
+│   ├── data/        Word list text files
+│   ├── words.js     Loads and exports answer + valid-guess lists
+│   ├── game.js      Two-pass coloring algorithm
+│   └── server.js    Routes, session map, CORS
+└── frontend/
+    └── src/
+        ├── api.ts    Fetch client
+        ├── Game.tsx  Game state, board, keyboard, modal
+        └── App.tsx
 ```
