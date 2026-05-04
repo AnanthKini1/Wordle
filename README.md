@@ -46,7 +46,7 @@ The frontend defaults to `http://localhost:3001` for the API. Override with `VIT
 
 **Sessions stored in memory.** A `Map` keyed by `gameId`. Doesn't survive restarts. Fine for this project; production would use Redis or something similar. 
 
-**Daily word via deterministic indexing.** `answers[Math.floor(Date.now() / 86_400_000) % answers.length]`. Same word for everyone, no cron, no DB. Pure function of the date.
+**Daily word via deterministic indexing.** `answers[Math.floor(Date.now() / 86_400_000) % answers.length]`. Same word for everyone, no cron, no DB. Pure function of the date. Rotation happens at UTC midnight (~5 PM Pacific) — a globally-synchronized cutoff, not a per-user-local one. A timezone-aware rotation would need either user input or geo-IP lookup, which I didn't think was worth the complexity for this project.
 
 **Word list as a `Set`.** Validating guesses against ~15,000 words on every request — `Set.has()` is O(1) and the most efficient option. I also unioned the answer list into the guess list at startup, which prevents the edge case where today's answer isn't in the guess list (would make the game unwinnable).
 
