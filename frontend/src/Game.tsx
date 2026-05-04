@@ -21,26 +21,13 @@ export default function Game() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [revealingRow, setRevealingRow] = useState<number | null>(null);
   const [revealedCount, setRevealedCount] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // starts game
   useEffect(() => {
     startGame()
       .then(state => setGameId(state.gameId))
       .catch(err => setError(err.message));
-  }, []);
-
-  const handlePlayAgain = useCallback(async () => {
-    try {
-      const state = await startGame();
-      setGameId(state.gameId);
-      setGuesses([]);
-      setCurrentGuess('');
-      setStatus('active');
-      setError(null);
-      setAnswer(null);
-    } catch (err: any) {
-      setError(err.message);
-    }
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -72,8 +59,10 @@ export default function Game() {
       if (res.status === 'lost') {
         const a = await getAnswer(gameId);
         setAnswer(a);
+        setModalOpen(true);
       } else if (res.status === 'won') {
         setAnswer(currentGuess.toLowerCase());
+        setModalOpen(true);
       }
     } catch (err: any) {
       setError(err.message);
@@ -186,9 +175,10 @@ export default function Game() {
         ))}
       </div>
 
-      {status !== 'active' && (
-        <div className="modal-backdrop">
-          <div className="modal">
+      {status !== 'active' && modalOpen && (
+        <div className="modal-backdrop" onClick={() => setModalOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setModalOpen(false)}>✕</button>
             <h2 className="modal-headline">
               {status === 'won' ? 'You won!' : 'Out of tries'}
             </h2>
@@ -196,9 +186,6 @@ export default function Game() {
             {status === 'won' && (
               <div className="modal-tries">Solved in {guesses.length}/{MAX_TRIES}</div>
             )}
-            <button className="modal-play-again" onClick={handlePlayAgain}>
-              Play Again
-            </button>
           </div>
         </div>
       )}
