@@ -24,7 +24,7 @@ app.use(cors({
 app.use(express.json());
 
 const sessions = new Map();
-const MAX_TRIES = 5;
+const MAX_TRIES = 6;
 
 function getDailyWord() {
   const dayIndex = Math.floor(Date.now() / 86400000);
